@@ -1,0 +1,31 @@
+
+/* Note: You can write Sass in this file. */
+
+body {
+  padding-top: 25px;
+  font-size: 16px;
+  background-color: #2c3e50;
+}
+
+
+/* Tile selector */
+
+.tile-selector {
+}
+
+.tile-selector ul {
+  margin: 0;
+}
+
+.tile-selector .tile {
+  cursor: pointer;
+  &:hover {
+    filter: opacity(.8);
+  }
+  &.selected {
+    outline-width: thick;
+    outline-color: violet;
+    outline-style: solid;
+    outline-offset: -5px;
+  }
+}
