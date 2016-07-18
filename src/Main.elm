@@ -52,7 +52,7 @@ init =
     , selection = (0, 0)
     , grid = Grid.empty 10 10
     , drag = Nothing
-    , position = Mouse.Position 100 100
+    , position = Mouse.Position 200 300
     , mode = Move
     }
   , Cmd.none

@@ -22,8 +22,7 @@ body {
 .tile-map .tile {
   cursor: pointer;
   &:hover {
-    fill: #34495e;
-    //filter: opacity(.8);
+    //fill: #34495e;
   }
 }
 

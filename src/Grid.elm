@@ -44,6 +44,42 @@ setTile x y val grid =
 -- VIEW
 
 
+viewImage : Context msg -> (Int, Int) -> Int -> Int -> Svg.Svg msg
+viewImage ctx (col, row) x y =
+  -- Svg.defs
+  -- []
+  -- [ Svg.view
+  --   [ Attr.width "48"
+  --   , Attr.height "48"
+  --   , Attr.patternUnits "userSpaceOnUse"
+  --   ]
+  --   [ Svg.image
+  --     [ Attr.xlinkHref ctx.path
+  --     , Attr.width "48"
+  --     , Attr.height "48"
+  --     , Attr.x (toString (x * 48))
+  --     , Attr.y (toString (y * 48))
+  --     ]
+  --     []
+  --   ]
+  -- ]
+  Svg.svg
+  [ Attr.width "48"
+  , Attr.height "48"
+  , Attr.viewBox "0 0 48 48"
+  ]
+  [ Svg.image
+    [ Attr.xlinkHref ctx.path
+    , Attr.viewBox "0 0 48 48"
+    , Attr.width "48"
+    , Attr.height "48"
+    , Attr.x (toString (x * 48))
+    , Attr.y (toString (y * 48))
+    ]
+    []
+  ]
+
+
 viewTile : Context msg -> Int -> Int -> Maybe (Int, Int) -> Svg.Svg msg
 viewTile ctx y x maybeCoord =
   Svg.g
@@ -54,25 +90,24 @@ viewTile ctx y x maybeCoord =
      , Attr.x (toString (x * 48))
      , Attr.y (toString (y * 48))
      , Attr.stroke "black"
-     , Attr.fill "grey"
+     --, Attr.fill "grey"
+     -- , Attr.fill <|
+     --     case maybeCoord of
+     --       Nothing -> "grey"
+     --       Just coord -> "url(#tile1)"
+     , Attr.fill "url(#tile1)"
      , Attr.class "tile"
      , Events.onMouseOut (ctx.onMouseOver x y)
      , Events.onMouseOver (ctx.onMouseOver x y)
      , Events.onClick (ctx.onTileClick x y)
      ]
      []
-   , case maybeCoord of
-      Nothing ->
-        Svg.text ""
-      Just coord ->
-        Svg.image
-        [ Attr.xlinkHref ctx.path
-        , Attr.width "48"
-        , Attr.height "48"
-        , Attr.x (toString (x * 48))
-        , Attr.y (toString (y * 48))
-        ]
-        []
+   -- , case maybeCoord of
+   --    Nothing ->
+   --      Svg.text ""
+   --    Just coord ->
+   --      --viewImage ctx coord x y
+   --     Svg.text ""
    ]
 
 
@@ -97,7 +132,27 @@ view ctx grid =
     [ Attr.class "tile-map"
     , ctx.onMouseDown
     ]
-    [ Svg.g
+    [
+     Svg.defs
+      []
+      [ Svg.pattern
+        [ Attr.id "tile1"
+        , Attr.width <| toString (48 // 4)
+        --, Attr.width "48"
+        --, Attr.height "48"
+        , Attr.height <| toString (48 // 2)
+        , Attr.patternUnits "userSpaceOnUse"
+        , Attr.patternTransform "scale(4 4)"
+        ]
+        [ Svg.image
+          [ Attr.xlinkHref ctx.path
+          , Attr.width "48"
+          , Attr.height "48"
+          ]
+          []
+        ]
+      ]
+    , Svg.g
       [ transform ]
       (List.indexedMap (viewRow ctx) (Array.toList grid))
 
