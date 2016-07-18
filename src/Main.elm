@@ -31,12 +31,18 @@ type alias Drag =
   }
 
 
+type Mode
+  = Paint -- Dragging will fill in tiles over an area
+  | Move -- Dragging will move the tile map
+
+
 type alias Model =
   { tileset : Tileset
   , selection : (Int, Int)
   , grid : Grid
   , position : Mouse.Position
   , drag : Maybe Drag
+  , mode : Mode
   }
 
 
@@ -46,7 +52,8 @@ init =
     , selection = (0, 0)
     , grid = Grid.empty 10 10
     , drag = Nothing
-    , position = Mouse.Position 0 0
+    , position = Mouse.Position 100 100
+    , mode = Move
     }
   , Cmd.none
   )
@@ -60,6 +67,9 @@ type Msg
   | TileSelector Int Int
   | Zoom
   | TileClick Int Int
+  -- MODE
+  | ChangeMode Mode
+  | PaintTile Int Int
   -- DRAG
   | DragStart Mouse.Position
   | DragAt Mouse.Position
@@ -79,7 +89,15 @@ update msg model =
           | selection = (x, y)
       } ! [Cmd.none]
     TileClick x y ->
-      (model, Cmd.none)
+      update (PaintTile x y) model
+    ChangeMode mode ->
+      { model
+          | mode = mode
+      } ! [Cmd.none]
+    PaintTile x y ->
+      { model
+          | grid = Grid.setTile x y (Just model.selection) model.grid
+      } ! [Cmd.none]
     -- DRAG
     DragStart xy ->
       { model
@@ -92,7 +110,11 @@ update msg model =
     DragEnd _ ->
       { model
           | drag = Nothing
-          , position = getPosition model
+          , position =
+              -- Only update position if we're in Move mode
+              case model.mode of
+                Move -> getPosition model
+                _ -> model.position
       } ! [Cmd.none]
 
 
@@ -154,12 +176,46 @@ view ({tileset} as model) =
   [ p
     []
     [ pre [] [ text <| toString (model.drag, model.position) ]
+    , div
+      [ class "btn-group"
+      ]
+      [ button
+        [ classList [ ("btn", True)
+                    , ("btn-default", True)
+                    , ("active", model.mode == Move)
+                    ]
+        , onClick (ChangeMode Move)
+        ]
+        [ text "Move" ]
+      , button
+        [ classList [ ("btn", True)
+                    , ("btn-default", True)
+                    , ("active", model.mode == Paint)
+                    ]
+        , onClick (ChangeMode Paint)
+        ]
+        [ text "Paint" ]
+      ]
     , viewTileset model
     , let
         ctx =
           { onTileClick = TileClick
           , onMouseDown = on "mousedown" (JD.map DragStart Mouse.position)
-          , offset = getPosition model
+          , path = model.tileset.path
+          , onMouseOver = \x y ->
+              -- Only care about mouseover if we're in paint mode during drag
+              case (model.mode, model.drag) of
+                (Paint, Just _) ->
+                  PaintTile x y
+                _ ->
+                  NoOp
+          , offset =
+              -- Only offset by drag position if we're in Move mode
+              case model.mode of
+                Move ->
+                  getPosition model
+                _ ->
+                  model.position
           }
       in
         Grid.view ctx model.grid

@@ -11,10 +11,14 @@ import Svg
 import Svg.Attributes as Attr
 import Svg.Events as Events
 import Mouse
+import Array.Extra as AE
 
 
 type alias Grid =
   Array (Array (Maybe (Int, Int)))
+
+
+-- CREATE
 
 
 empty : Int -> Int -> Grid
@@ -28,18 +32,48 @@ empty rows cols =
     Array.map makeRow (Array.fromList [0 .. rows])
 
 
+-- UPDATE TILES
+
+
+setTile : Int -> Int -> Maybe (Int, Int) -> Grid -> Grid
+setTile x y val grid =
+  let _ = Debug.log "setTime" (x, y) in
+  AE.update y (\row -> AE.update x (\tile -> val) row) grid
+
+
+-- VIEW
+
+
 viewTile : Context msg -> Int -> Int -> Maybe (Int, Int) -> Svg.Svg msg
 viewTile ctx y x maybeCoord =
-  Svg.rect
-  [ Attr.width "48"
-  , Attr.height "48"
-  , Attr.x (toString (x * 48))
-  , Attr.y (toString (y * 48))
-  , Attr.stroke "black"
-  , Attr.fill "transparent"
-  , Events.onClick (ctx.onTileClick x y)
-  ]
-  []
+  Svg.g
+   []
+   [ Svg.rect
+     [ Attr.width "48"
+     , Attr.height "48"
+     , Attr.x (toString (x * 48))
+     , Attr.y (toString (y * 48))
+     , Attr.stroke "black"
+     , Attr.fill "grey"
+     , Attr.class "tile"
+     , Events.onMouseOut (ctx.onMouseOver x y)
+     , Events.onMouseOver (ctx.onMouseOver x y)
+     , Events.onClick (ctx.onTileClick x y)
+     ]
+     []
+   , case maybeCoord of
+      Nothing ->
+        Svg.text ""
+      Just coord ->
+        Svg.image
+        [ Attr.xlinkHref ctx.path
+        , Attr.width "48"
+        , Attr.height "48"
+        , Attr.x (toString (x * 48))
+        , Attr.y (toString (y * 48))
+        ]
+        []
+   ]
 
 
 
@@ -60,9 +94,7 @@ view ctx grid =
       Attr.transform translate
   in
     Svg.svg
-    [ Attr.width "600"
-    , Attr.height "400"
-    , Attr.viewBox "0 0 200 200"
+    [ Attr.class "tile-map"
     , ctx.onMouseDown
     ]
     [ Svg.g
@@ -75,5 +107,7 @@ view ctx grid =
 type alias Context msg =
   { onTileClick : (Int -> Int -> msg)
   , onMouseDown : Html.Attribute msg
+  , onMouseOver : (Int -> Int -> msg)
   , offset : Mouse.Position
+  , path : String
   }
