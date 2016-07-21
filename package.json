@@ -3,7 +3,8 @@
     "start": "webpack-dev-server --hot --inline --content-base static/",
     "build": "rimraf dist && webpack",
     "serve": "static dist",
-    "watch": "webpack --watch"
+    "watch": "webpack --watch",
+    "deploy": "npm run build && ./bin/deploy.sh"
   },
   "devDependencies": {
     "resolve-url-loader": "^1.4.4",
