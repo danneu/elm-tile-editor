@@ -262,8 +262,11 @@ view ({tileset} as model) =
     [ class "sidebar" ]
     [ div
       [ class "sidebar-panel" ]
-      [ h3 [] [ text "Drag Mode" ]
-      , p [] [ small [] [ code [] [text "space"], text " toggles" ] ]
+      [ h3
+        []
+        [ text "Mode "
+        , small [] [ code [] [text "space"], text " to toggle" ]
+        ]
       , div
         [ class "btn-group btn-group-justified"
         ]
