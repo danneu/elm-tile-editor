@@ -88,6 +88,10 @@ if (TARGET_ENV === 'production') {
           loader: 'elm-webpack'
         },
         {
+          test: /\.jpg$/,
+          loaders: ['url']
+        },
+        {
           test: /\.(css|scss)$/,
           loader: ExtractTextPlugin.extract('style-loader', [
             'css', 'postcss', 'sass'
