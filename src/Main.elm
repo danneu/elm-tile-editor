@@ -96,7 +96,6 @@ type Msg
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
-  let _ = Debug.log "msg" msg in
   case msg of
     NoOp ->
       (model, Cmd.none)
