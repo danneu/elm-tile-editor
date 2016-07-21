@@ -246,6 +246,19 @@ view ({tileset} as model) =
   [ class <| "container " ++ toString model.mode ++ "-mode"
   ]
   [ div
+    [ style [ ("position", "absolute")
+            , ("top", "10px")
+            , ("left", "10px")
+            ]
+    ]
+    [ span [] [ text "Source: " ]
+    , a
+      [ href "https://github.com/danneu/elm-tile-editor"
+      , style [ ("color", "#2ecc71") ]
+      ]
+      [ text "danneu/elm-tile-editor" ]
+    ]
+  , div
     [ class "sidebar" ]
     [ div
       [ class "sidebar-panel" ]
