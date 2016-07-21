@@ -6,7 +6,7 @@ module Grid exposing (..)
 import Array exposing (Array)
 -- 3rd
 import Html
-import Html.Attributes
+import Html.Attributes as Hattr
 import Svg
 import Svg.Attributes as Attr
 import Svg.Events as Events
@@ -37,84 +37,83 @@ empty rows cols =
 
 setTile : Int -> Int -> Maybe (Int, Int) -> Grid -> Grid
 setTile x y val grid =
-  let _ = Debug.log "setTime" (x, y) in
   AE.update y (\row -> AE.update x (\tile -> val) row) grid
+
+
+getTile : Int -> Int -> Grid -> Maybe (Int, Int)
+getTile x y grid =
+  Maybe.andThen (Array.get y grid)
+  <| \row -> Maybe.withDefault Nothing (Array.get x row)
 
 
 -- VIEW
 
 
-viewImage : Context msg -> (Int, Int) -> Int -> Int -> Svg.Svg msg
-viewImage ctx (col, row) x y =
-  -- Svg.defs
-  -- []
-  -- [ Svg.view
-  --   [ Attr.width "48"
-  --   , Attr.height "48"
-  --   , Attr.patternUnits "userSpaceOnUse"
-  --   ]
-  --   [ Svg.image
-  --     [ Attr.xlinkHref ctx.path
-  --     , Attr.width "48"
-  --     , Attr.height "48"
-  --     , Attr.x (toString (x * 48))
-  --     , Attr.y (toString (y * 48))
-  --     ]
-  --     []
-  --   ]
-  -- ]
-  Svg.svg
-  [ Attr.width "48"
-  , Attr.height "48"
-  , Attr.viewBox "0 0 48 48"
-  ]
-  [ Svg.image
-    [ Attr.xlinkHref ctx.path
-    , Attr.viewBox "0 0 48 48"
-    , Attr.width "48"
-    , Attr.height "48"
-    , Attr.x (toString (x * 48))
-    , Attr.y (toString (y * 48))
-    ]
-    []
-  ]
-
-
 viewTile : Context msg -> Int -> Int -> Maybe (Int, Int) -> Svg.Svg msg
-viewTile ctx y x maybeCoord =
-  Svg.g
-   []
-   [ Svg.rect
-     [ Attr.width "48"
-     , Attr.height "48"
-     , Attr.x (toString (x * 48))
-     , Attr.y (toString (y * 48))
-     , Attr.stroke "black"
-     --, Attr.fill "grey"
-     -- , Attr.fill <|
-     --     case maybeCoord of
-     --       Nothing -> "grey"
-     --       Just coord -> "url(#tile1)"
-     , Attr.fill "url(#tile1)"
-     , Attr.class "tile"
-     , Events.onMouseOut (ctx.onMouseOver x y)
-     , Events.onMouseOver (ctx.onMouseOver x y)
-     , Events.onClick (ctx.onTileClick x y)
-     ]
-     []
-   -- , case maybeCoord of
-   --    Nothing ->
-   --      Svg.text ""
-   --    Just coord ->
-   --      --viewImage ctx coord x y
-   --     Svg.text ""
-   ]
-
+viewTile ({tilesize} as ctx) y x maybeCoord =
+  let
+    (fillOpacity, fill) =
+         case maybeCoord of
+           Nothing ->
+             ("0.5", "grey")
+           Just coord ->
+             ("1.0", "url(#tile-" ++ toString (fst coord) ++ "-" ++ toString (snd coord) ++ ")")
+  in
+    Svg.g
+    []
+    [ Svg.rect
+      [ Attr.width (toString tilesize)
+      , Attr.height (toString tilesize)
+      , Attr.x (toString (x * tilesize))
+      , Attr.y (toString (y * tilesize))
+      , Attr.stroke "black"
+      , Attr.fill fill
+      , Attr.fillOpacity fillOpacity
+      , Attr.class "tile"
+      , Events.onMouseOut (ctx.onMouseOver x y)
+      , Events.onMouseOver (ctx.onMouseOver x y)
+      , Events.onClick (ctx.onTileClick x y)
+      ]
+      []
+    ]
 
 
 viewRow : Context msg -> Int -> Array (Maybe (Int, Int)) -> Svg.Svg msg
 viewRow ctx y row =
   Svg.g [] (List.indexedMap (viewTile ctx y) (Array.toList row))
+
+
+-- No energy left to fix the following clusters
+generatePairs : Int -> Int -> List (Int, Int)
+generatePairs rows cols =
+  List.concat <| List.indexedMap (\i xs -> List.map (\x -> (x, i)) xs ) (List.repeat rows [0 .. cols-1])
+
+
+viewPatterns : Context msg -> List (Html.Html msg)
+viewPatterns ({tilesize, rows, cols} as ctx)  =
+  let
+    fourth = tilesize // 4
+    viewBox x y =
+      toString (x * fourth) ++ " "
+      ++ toString ((y + 1) * fourth) ++ " "
+      ++ " " ++ toString fourth ++ " " ++ toString fourth
+    makeDef (x, y) =
+      Svg.pattern
+      [ Attr.id <| "tile-" ++ toString x ++ "-" ++ toString y
+      , Attr.width <| toString tilesize -- "48"
+      , Attr.height <| toString tilesize -- "48"
+      , Attr.viewBox (viewBox x y)
+      , Attr.patternUnits "userSpaceOnUse"
+      ]
+      [ Svg.image
+        [ Attr.xlinkHref ctx.path
+        , Attr.width <| toString tilesize --"48"
+        , Attr.height <| toString tilesize --"48"
+        ]
+        []
+      ]
+  in
+    List.map makeDef (generatePairs rows cols)
 
 
 view : Context msg -> Grid -> Html.Html msg
@@ -125,37 +124,26 @@ view ctx grid =
       ++ toString ctx.offset.x ++ " "
       ++ toString ctx.offset.y
       ++ ") "
+      ++ "scale(" ++ toString ctx.scale ++ ")"
     transform =
       Attr.transform translate
   in
     Svg.svg
     [ Attr.class "tile-map"
     , ctx.onMouseDown
+    , Hattr.style
+        [ ( "background-position",
+            (toString <| ctx.offset.x // -2) ++ "px "
+            ++ (toString <| ctx.offset.y // -2) ++ "px"
+          )
+        ]
     ]
-    [
-     Svg.defs
+    [ Svg.defs
       []
-      [ Svg.pattern
-        [ Attr.id "tile1"
-        , Attr.width <| toString (48 // 4)
-        --, Attr.width "48"
-        --, Attr.height "48"
-        , Attr.height <| toString (48 // 2)
-        , Attr.patternUnits "userSpaceOnUse"
-        , Attr.patternTransform "scale(4 4)"
-        ]
-        [ Svg.image
-          [ Attr.xlinkHref ctx.path
-          , Attr.width "48"
-          , Attr.height "48"
-          ]
-          []
-        ]
-      ]
+      (viewPatterns ctx)
     , Svg.g
       [ transform ]
       (List.indexedMap (viewRow ctx) (Array.toList grid))
-
     ]
 
 
@@ -165,4 +153,8 @@ type alias Context msg =
   , onMouseOver : (Int -> Int -> msg)
   , offset : Mouse.Position
   , path : String
+  , tilesize : Int
+  , rows : Int
+  , cols : Int
+  , scale : Float
   }

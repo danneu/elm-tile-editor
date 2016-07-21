@@ -60,6 +60,10 @@ if (TARGET_ENV === 'development') {
           loader: 'elm-hot!elm-webpack?verbose=true&warn=true'
         },
         {
+          test: /\.jpg$/,
+          loaders: ['url']
+        },
+        {
           test: /\.(css|scss)$/, 
           loaders: ['style', 'css', 'postcss', 'sass']
         }

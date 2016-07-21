@@ -7,9 +7,11 @@ import Html.App
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
 import Json.Decode as JD
+import Task
 -- 3rd
 import List.Extra as LE
 import Mouse
+import Keyboard.Extra as KE
 -- 1st
 import Grid exposing (Grid)
 
@@ -43,20 +45,29 @@ type alias Model =
   , position : Mouse.Position
   , drag : Maybe Drag
   , mode : Mode
+  , kb : KE.Model
+  , undoStack : List Grid
+  , scale : Float
   }
 
 
 init : (Model, Cmd Msg)
 init =
-  ( { tileset = Tileset 48 2 4 "./img/tileset.png"
-    , selection = (0, 0)
-    , grid = Grid.empty 10 10
-    , drag = Nothing
-    , position = Mouse.Position 200 300
-    , mode = Move
-    }
-  , Cmd.none
-  )
+  let
+    (kbModel, kbCmd) = KE.init
+  in
+    ( { tileset = Tileset 48 2 4 "./img/tileset.png"
+      , selection = (0, 0)
+      , grid = Grid.empty 10 20
+      , drag = Nothing
+      , position = Mouse.Position 100 100
+      , mode = Move
+      , kb = kbModel
+      , undoStack = []
+      , scale = 1
+      }
+    , Cmd.map Keyboard kbCmd
+    )
 
 
 -- UPDATE
@@ -74,6 +85,13 @@ type Msg
   | DragStart Mouse.Position
   | DragAt Mouse.Position
   | DragEnd Mouse.Position
+  -- KEYBOARD
+  | Keyboard KE.Msg
+  -- UNDO
+  | Undo
+  -- ZOOM
+  | ZoomOut
+  | ZoomIn
 
 
 update : Msg -> Model -> (Model, Cmd Msg)
@@ -89,15 +107,26 @@ update msg model =
           | selection = (x, y)
       } ! [Cmd.none]
     TileClick x y ->
-      update (PaintTile x y) model
+      case model.mode of
+        Move -> (model, Cmd.none)
+        Paint -> update (PaintTile x y) model
     ChangeMode mode ->
       { model
           | mode = mode
       } ! [Cmd.none]
     PaintTile x y ->
-      { model
-          | grid = Grid.setTile x y (Just model.selection) model.grid
-      } ! [Cmd.none]
+      -- No-op if we already selected this tile to avoid junk states
+      -- in the undo stack
+      if Grid.getTile x y model.grid == (Just model.selection) then
+        (model, Cmd.none)
+      else
+        let
+          grid' = Grid.setTile x y (Just model.selection) model.grid
+        in
+          { model
+              | grid = grid'
+              , undoStack = List.take 500 (grid' :: model.undoStack)
+          } ! [Cmd.none]
     -- DRAG
     DragStart xy ->
       { model
@@ -115,6 +144,49 @@ update msg model =
               case model.mode of
                 Move -> getPosition model
                 _ -> model.position
+      } ! [Cmd.none]
+    -- TODO: Figure out intended usage of this library instead of stuffing
+    -- everything in this action
+    Keyboard kbMsg ->
+      let
+        (kbModel', kbCmd') = KE.update kbMsg model.kb
+        -- Spacebar toggles mode
+        mode' =
+          if KE.isPressed KE.Space kbModel' then
+            case model.mode of
+              Paint -> Move
+              Move -> Paint
+          else
+            model.mode
+        -- Super-Z rewinds from undo stack
+        undoMsg =
+          if KE.isPressed KE.Super kbModel' && KE.isPressed KE.CharZ kbModel' then
+            Undo
+          else
+            NoOp
+      in
+        { model
+            | kb = kbModel'
+            , mode = mode'
+        } ! [Cmd.map Keyboard kbCmd'
+            , Task.perform identity identity (Task.succeed undoMsg)
+            ]
+    Undo ->
+      case model.undoStack of
+        [] ->
+          (model, Cmd.none)
+        grid' :: stack' ->
+          { model
+              | grid = grid'
+              , undoStack = stack'
+          } ! [Cmd.none]
+    ZoomIn ->
+      { model
+          | scale = Basics.max 0 (model.scale + 0.1)
+      } ! [Cmd.none]
+    ZoomOut ->
+      { model
+          | scale = Basics.max 0 (model.scale - 0.1)
       } ! [Cmd.none]
 
 
@@ -172,54 +244,118 @@ viewTileset ({tileset} as model) =
 view : Model -> Html Msg
 view ({tileset} as model) =
   div
-  [ class "container" ]
-  [ p
-    []
-    [ pre [] [ text <| toString (model.drag, model.position) ]
+  [ class <| "container " ++ toString model.mode ++ "-mode"
+  ]
+  [ div
+    [ class "sidebar" ]
+    [ div
+      [ class "sidebar-panel" ]
+      [ h3 [] [ text "Drag Mode" ]
+      , p [] [ small [] [ code [] [text "space"], text " toggles" ] ]
+      , div
+        [ class "btn-group btn-group-justified"
+        ]
+        [ div
+          [ class "btn-group "]
+          [ button
+            [ classList [ ("btn", True)
+                        , ("btn-default", model.mode /= Move)
+                        , ("btn-primary", model.mode == Move)
+                        , ("active", model.mode == Move)
+                        ]
+            , onClick (ChangeMode Move)
+            ]
+            [ span
+              [ class "glyphicon glyphicon-move" ]
+              []
+            , text " Move"
+            ]
+          ]
+        , div
+          [ class "btn-group" ]
+          [ button
+            [ classList [ ("btn", True)
+                        , ("btn-default", model.mode /= Paint)
+                        , ("btn-primary", model.mode == Paint)
+                        , ("active", model.mode == Paint)
+                        ]
+            , onClick (ChangeMode Paint)
+            ]
+            [ span
+              [ class "glyphicon glyphicon-tint" ]
+              []
+            , text " Paint"
+            ]
+          ]
+        ]
+      ]
     , div
-      [ class "btn-group"
+      [ class "sidebar-panel" ]
+      [ h3 [] [ text "Tile Picker" ]
+      , viewTileset model
       ]
-      [ button
-        [ classList [ ("btn", True)
-                    , ("btn-default", True)
-                    , ("active", model.mode == Move)
-                    ]
-        , onClick (ChangeMode Move)
+    , div
+      [ class "sidebar-panel" ]
+      [ h3
+        []
+        [ text "Undo Stack "
+        , small [] [ text <| " " ++ toString (List.length model.undoStack) ++ " deep" ]
         ]
-        [ text "Move" ]
       , button
-        [ classList [ ("btn", True)
-                    , ("btn-default", True)
-                    , ("active", model.mode == Paint)
-                    ]
-        , onClick (ChangeMode Paint)
+        [ onClick Undo
+        , class "btn btn-default btn-block"
         ]
-        [ text "Paint" ]
+        [ text "Undo "
+        , span [] [ code [] [text "(cmd-z)"] ]
+        ]
       ]
-    , viewTileset model
-    , let
-        ctx =
-          { onTileClick = TileClick
-          , onMouseDown = on "mousedown" (JD.map DragStart Mouse.position)
-          , path = model.tileset.path
-          , onMouseOver = \x y ->
-              -- Only care about mouseover if we're in paint mode during drag
-              case (model.mode, model.drag) of
-                (Paint, Just _) ->
-                  PaintTile x y
-                _ ->
-                  NoOp
-          , offset =
-              -- Only offset by drag position if we're in Move mode
-              case model.mode of
-                Move ->
-                  getPosition model
-                _ ->
-                  model.position
-          }
-      in
-        Grid.view ctx model.grid
+    , div
+      [ class "sidebar-panel" ]
+      [ h3
+        []
+        [ text "Zoom" ]
+      , button
+        [ onClick ZoomIn
+        , class "btn btn-default btn-block"
+        ]
+        [ text "Zoom In "
+        , span [] [ code [] [text "(cmd (+))"] ]
+        ]
+      , button
+        [ onClick ZoomOut
+        , class "btn btn-default btn-block"
+        ]
+        [ text "Zoom Out "
+        , span [] [ code [] [text "(cmd (-))"] ]
+        ]
+      ]
     ]
+  , let
+      ctx =
+        { onTileClick = TileClick
+        , onMouseDown = on "mousedown" (JD.map DragStart Mouse.position)
+        , path = model.tileset.path
+        , tilesize = model.tileset.tilesize
+        , rows = model.tileset.rows
+        , cols = model.tileset.cols
+        , scale = model.scale
+        , onMouseOver = \x y ->
+            -- Only care about mouseover if we're in paint mode during drag
+            case (model.mode, model.drag) of
+              (Paint, Just _) ->
+                PaintTile x y
+              _ ->
+                NoOp
+        , offset =
+            -- Only offset by drag position if we're in Move mode
+            case model.mode of
+              Move ->
+                getPosition model
+              _ ->
+                model.position
+        }
+    in
+      Grid.view ctx model.grid
   ]
 
 
@@ -228,14 +364,17 @@ view ({tileset} as model) =
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-  case model.drag of
-    Nothing ->
-      Sub.none
-    Just _ ->
-      Sub.batch
-        [ Mouse.moves DragAt
-        , Mouse.ups DragEnd
-        ]
+  Sub.batch
+    [ Sub.map Keyboard KE.subscriptions
+    , case model.drag of
+        Nothing ->
+          Sub.none
+        Just _ ->
+          Sub.batch
+            [ Mouse.moves DragAt
+            , Mouse.ups DragEnd
+            ]
+    ]
 
 
 main : Program Never

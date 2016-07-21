@@ -4,7 +4,13 @@
 body {
   padding-top: 25px;
   font-size: 16px;
-  background-color: #2c3e50;
+  //background-color: #2c3e50;
+  color: white;
+}
+
+.tile-map {
+  background-image: url(/img/starfield.jpg);
+  background-repeat: repeat;
 }
 
 /* Tile map */
@@ -20,16 +26,40 @@ body {
 }
 
 .tile-map .tile {
-  cursor: pointer;
   &:hover {
     //fill: #34495e;
   }
 }
 
+/* Sidebar is a container for all the tools */
+
+
+.sidebar {
+  width: 300px;
+  top: 0;
+  right: 0;
+  position: absolute;
+  background: rgba(0, 0, 0, 0.70);
+  padding: 20px;
+}
+
+// sidebar panels group each tool
+.sidebar-panel {
+  margin-bottom: 50px;
+}
+
+
+.Move-mode .tile-map {
+  cursor: move;
+}
+.Paint-mode .tile-map .tile {
+  cursor: pointer;
+}
 
 /* Tile selector */
 
 .tile-selector {
+  display: inline-block;
 }
 
 .tile-selector ul {
