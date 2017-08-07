@@ -92,23 +92,23 @@ generatePairs rows cols =
 viewPatterns : Context msg -> List (Html.Html msg)
 viewPatterns ({tilesize, rows, cols} as ctx)  =
   let
-    fourth = tilesize // 4
-    viewBox x y =
-      toString (x * fourth) ++ " "
-      ++ toString ((y + 1) * fourth) ++ " "
-      ++ " " ++ toString fourth ++ " " ++ toString fourth
+    viewBox x y 
+      =  toString (x * tilesize) ++ " "
+      ++ toString (y * tilesize) ++ " " 
+      ++ toString tilesize ++ " " 
+      ++ toString tilesize
     makeDef (x, y) =
       Svg.pattern
       [ Attr.id <| "tile-" ++ toString x ++ "-" ++ toString y
-      , Attr.width <| toString tilesize -- "48"
-      , Attr.height <| toString tilesize -- "48"
+      , Attr.width <| toString tilesize 
+      , Attr.height <| toString tilesize 
       , Attr.viewBox (viewBox x y)
       , Attr.patternUnits "userSpaceOnUse"
       ]
       [ Svg.image
         [ Attr.xlinkHref ctx.path
-        , Attr.width <| toString tilesize --"48"
-        , Attr.height <| toString tilesize --"48"
+        , Attr.width <| toString (tilesize * cols)
+        , Attr.height <| toString (tilesize * rows)
         ]
         []
       ]
