@@ -18,12 +18,15 @@ import Grid exposing (Grid)
 
 -- MODEL
 
+type alias TilesetShape = List Bool
+
 
 type alias Tileset =
   { tilesize : Int
   , rows : Int
   , cols : Int
   , path : String
+  , shape : Maybe TilesetShape
   }
 
 
@@ -57,8 +60,12 @@ init : (Model, Cmd Msg)
 init =
   let
     (kbModel, kbCmd) = KE.init
+    tilesetShape = Just [
+      True, True, True,  True,
+      True, True, False, False
+    ]
   in
-    ( { tileset = Tileset 48 2 4 "./img/tileset.png"
+    ( { tileset = Tileset 48 2 4 "./img/tileset.png" tilesetShape
       , selection = (0, 0)
       , grid = emptyGrid -- define size in emptyGrid
       , drag = Nothing
@@ -104,9 +111,12 @@ update msg model =
     Zoom ->
       (model, Cmd.none)
     TileSelector x y ->
-      { model
-          | selection = (x, y)
-      } ! [Cmd.none]
+      if isTileSelectable x y model.tileset then
+        { model
+            | selection = (x, y)
+        } ! [Cmd.none]
+      else
+        ( model, Cmd.none)
     TileClick x y ->
       case model.mode of
         Move -> (model, Cmd.none)
@@ -208,7 +218,33 @@ getPosition {position, drag} =
 
 
 -- VIEW
-
+{-| Determine if a tile should be selectable based on the tileset shape. The
+    shape of the tileset is a Maybe List of Bool representing the selectale 
+    tiles in the set. If tileset has a shape of Nothing all tiles are 
+    selectable.
+    
+    -- Example --
+    The set below tiles (2,1) and (3,1) are not selectable.
+    Just [
+      True,  True,  True,  True
+      True,  True,  False, False 
+    ]  
+  -}
+isTileSelectable : Int -> Int -> Tileset -> Bool
+isTileSelectable x y tileset =
+  case tileset.shape of
+    Nothing -> 
+      True
+    Just shape ->
+      let
+        index = (tileset.cols) * (y) + (x)
+        tilesetShape = LE.getAt index shape
+        check boolean = 
+          case boolean of
+            Just a -> a
+            Nothing -> False
+      in
+        check tilesetShape
 
 viewTileset : Model -> Html Msg
 viewTileset ({tileset} as model) =
@@ -217,7 +253,7 @@ viewTileset ({tileset} as model) =
     positionY y = -y * tileset.tilesize
     viewTile y x =
       li
-      [ classList [ ("tile", True)
+      [ classList [ ("tile", (isTileSelectable x y tileset) )
                   , ("selected", (x, y) == model.selection)
                   ]
       , style [ ("width", toString tileset.tilesize ++ "px")
