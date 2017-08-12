@@ -50,6 +50,8 @@ type alias Model =
   , scale : Float
   }
 
+emptyGrid =
+  Grid.empty 10 20
 
 init : (Model, Cmd Msg)
 init =
@@ -58,13 +60,13 @@ init =
   in
     ( { tileset = Tileset 48 2 4 "./img/tileset.png"
       , selection = (0, 0)
-      , grid = Grid.empty 10 20
+      , grid = emptyGrid -- define size in emptyGrid
       , drag = Nothing
       , position = Mouse.Position 100 100
       , mode = Move
       , kb = kbModel
       , undoStack = []
-      , scale = 1
+      , scale = 1.0
       }
     , Cmd.map Keyboard kbCmd
     )
@@ -173,12 +175,17 @@ update msg model =
     Undo ->
       case model.undoStack of
         [] ->
-          (model, Cmd.none)
-        grid' :: stack' ->
-          { model
+          (model, Cmd.none)        
+        _ :: stack' ->
+          let 
+            grid' = case List.head stack' of
+                      Just g -> g
+                      Nothing -> emptyGrid
+          in
+            { model
               | grid = grid'
               , undoStack = stack'
-          } ! [Cmd.none]
+            } ! [Cmd.none]
     ZoomIn ->
       { model
           | scale = Basics.max 0 (model.scale + 0.1)
